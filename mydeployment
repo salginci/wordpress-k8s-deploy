@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: salginci-home-mysql
+  labels:
+    app: salginci-home
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: salginci-home
+    tier: mysql
+  clusterIP: None
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  labels:
+    app: salginci-home
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salginci-home-mysql
+  labels:
+    app: salginci-home
+spec:
+  selector:
+    matchLabels:
+      app: salginci-home
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: salginci-home
+        tier: mysql
+    spec:
+      containers:
+      - image: mysql:8.0
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: salginci-home-mysql-secret
+              key: password
+        - name: MYSQL_DATABASE
+          value: salginci-home
+        - name: MYSQL_USER
+          value: salginci-home
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: salginci-home-mysql-secret
+              key: password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
